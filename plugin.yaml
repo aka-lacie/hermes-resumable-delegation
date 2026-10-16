@@ -1,0 +1,15 @@
+manifest_version: 1
+name: resumable-delegation
+kind: standalone
+version: 0.1.0
+description: Retain delegated conversations for parent-directed continuation, observation and skills review.
+author: aka-lacie
+config_schema:
+  enabled:
+    type: bool
+    default: true
+    description: Retain new delegated conversations and expose continuation controls.
+  review_skills:
+    type: bool
+    default: true
+    description: Request eligible skills-only review for retained children.
