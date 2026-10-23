@@ -7,8 +7,8 @@ activation uses current tools, skills, instructions and credentials.
 ## Host requirements and enablement
 
 This plugin requires the proposed retained-conversation host changes on
-`feat/resumable-delegation` (validated at `b21e9cf3b77286adf7df3fc2d0c095767ae4e68f`,
-based on upstream `e5eb6b36fe78eb012cefd1f5f436cd458411b8b3`). These changes are
+`feat/resumable-delegation` (validated at `224ba76510974bc2a1a14c176db0bf3e1af779cd`,
+based on upstream `f4ac0bea1ea50bba62886fb0b7e308e4edee8fd3`). These changes are
 not yet merged into upstream Hermes; an unpatched release is not supported.
 
 Retained operations require a native SessionDB owner. Managed compute workers
@@ -59,7 +59,16 @@ Spawn/completion return stable session IDs. Titles are parent-supplied or derive
 from the first assignment. List shows running/idle children ordered by last activity,
 with creation/activity timestamps and bounded assignment previews. The default
 window is 20; query searches all owned children, including older/closed entries.
-Observe returns bounded history without waking or renewing a child.
+Observe returns bounded history without waking or renewing a child. With the host
+observation-preview fix, assistant entries include compact `tool_calls` (name,
+file target or command preview), and tool results retain their stored `tool_name`.
+Tool output previews are capped at 1,500 characters; longer text keeps its head
+and tail with an explicit omitted-character count. Assistant prose can use the
+remaining 12,000-character window, which also counts the compact metadata.
+`truncated: true` signals omitted messages or shortened previews. Previews are
+text, not necessarily parseable JSON; stored transcripts remain complete.
+Older hosts still return their original observation format: this plugin does not
+patch host storage or reconstruct metadata that the host has discarded.
 
 Resume supplies the next assignment and optionally a model within the saved
 provider. Include relevant changes in that assignment: later parent history is
@@ -104,7 +113,7 @@ From the patched Hermes checkout, use its canonical test runner and PM-built tes
 environment (set `HERMES_PYTHON` to the selected test interpreter if not activated):
 
 ```bash
-scripts/run_tests.sh /path/to/hermes-resumable-delegation/test_sessions.py -j 2
+scripts/run_tests.sh /path/to/hermes-resumable-delegation -j 2
 scripts/run_tests.sh tests/plugins/test_subagent_extension.py tests/agent/test_delegated_review.py
 ```
 
