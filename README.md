@@ -46,6 +46,7 @@ and legacy live-ID controls. It does not replace or monkeypatch the execution en
 
 ```json
 {"tasks": [{"goal": "Review this PR", "title": "PR review", "fork_context": true}]}
+{"tasks": [{"goal": "Review the API", "provider": "review-provider", "model": "review-model"}, {"goal": "Check the tests", "model": "fast-model"}]}
 {"action": "resume", "session_id": "<child ID>", "message": "I fixed the race; review the updated diff."}
 {"action": "list"}
 {"action": "list", "query": "PR review"}
@@ -70,8 +71,20 @@ text, not necessarily parseable JSON; stored transcripts remain complete.
 Older hosts still return their original observation format: this plugin does not
 patch host storage or reconstruct metadata that the host has discarded.
 
-Resume supplies the next assignment and optionally a model within the saved
-provider. Include relevant changes in that assignment: later parent history is
+Each spawn task can select `model` and an optional configured `provider`. Model-only
+selection keeps the delegation provider/endpoint (or the parent's route when no
+delegation route is configured); Hermes does not infer a provider from a model name.
+A provider override requires an explicit model and a specific provider name, not
+`auto`. It resolves that provider's own credentials and transport from the current
+profile, without reusing another route's endpoint, request overrides or fallback
+chain. Different tasks in one batch may select different routes. Omitting both
+selectors preserves normal delegation defaults. Names in the example above are
+placeholders for providers/models available in your profile.
+
+Resume supplies the next assignment and optionally a top-level `model` within the
+saved provider. Changing providers requires a new child. Saved routes survive changes
+to delegation defaults; current credentials are resolved at each activation.
+Include relevant changes in that assignment: later parent history is
 not synchronized automatically. Assignments are labeled with parent provenance
 and a timestamp. Busy children must be steered or stopped. Close permanently retires
 an idle child while retaining history. There is no idle TTL or retained-child cap;
@@ -88,8 +101,9 @@ completed child. `review_skills: false` disables this plugin's request for child
 There are no additional Python packages, services, or companion plugins to install.
 The plugin uses Hermes' public `SubagentExtension` and plugin-context APIs.
 Workflow, memory, messaging/reaction, provider, and steering plugins are not required.
-All model and credential selection stays in Hermes configuration; the plugin ships
-no provider presets, user instructions, or profile configuration.
+Provider setup and credentials stay in Hermes configuration. The parent can select
+configured providers/models per child; no difficulty-routing plugin or policy is
+required. The plugin ships no provider presets, user instructions, or profile configuration.
 
 ## Ownership boundary
 
@@ -121,7 +135,10 @@ Tests load this plugin through real native discovery in temporary profiles. They
 exercise construction, disk persistence, cleanup, parent reconstruction and resume
 through registry, inline and plugin API paths; changed tools, workspace/fork history,
 admission failure, live controls, and unload are covered. External provider execution
-is replaced. Core tests separately protect profile isolation, explicit tool consent,
+is replaced. Routing tests use real host credential resolution to check mixed-route
+batches, endpoint/credential separation, refreshed credentials on resume, saved model
+changes, and invalid selection refusing a whole batch before launch.
+Core tests separately protect profile isolation, explicit tool consent,
 and extension removal, plus durable storage, contention and review safety.
 
 ## License

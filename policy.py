@@ -22,6 +22,8 @@ class RetainedDelegation(SubagentExtension):
     def extend_schema(self, schema):
         schema["parameters"] = extend_schema(schema["parameters"])
         schema["description"] += (
+            "\nFor spawn, tasks[].model and tasks[].provider override the configured delegation route per child. "
+            "A provider override requires an explicit model. On resume, only model can change within the saved provider."
             "\nCompleted children retain their conversations on disk. Resume by session_id with a new assignment; "
             "tools and skills refresh at activation. list shows recent running/idle children ordered by activity; "
             "query searches older retained sessions. observe reads without waking; close retires an idle child. "
