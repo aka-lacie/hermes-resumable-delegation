@@ -17,7 +17,8 @@ class RetainedDelegation(SubagentExtension):
 
     def child_options(self, task):
         title = str(task.get("title") or " ".join(str(task["goal"]).split())[:80]).strip() or "Delegated task"
-        return {"retain": True, "review_skills": self.ctx.get_config("review_skills", True) is True, "title": title}
+        return {"retain": True, "fork_context": True,
+                "review_skills": self.ctx.get_config("review_skills", True) is True, "title": title}
 
     def extend_schema(self, schema):
         schema["parameters"] = extend_schema(schema["parameters"])

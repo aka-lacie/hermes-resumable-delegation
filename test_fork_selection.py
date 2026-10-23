@@ -49,3 +49,33 @@ def test_spawn_exposes_fork_choice_and_keeps_fresh_child_isolated(harness, surfa
     assert "fork_context" not in native_task
     assert "Children know nothing of this conversation" in native["description"]
     parent.close()
+
+
+@pytest.mark.parametrize("source", ["task", "policy", "policy_exception"])
+def test_invalid_fork_policy_refuses_batch_before_copying_history(harness, monkeypatch, source):
+    from agent.subagent_extension import get_subagent_extension
+    from tools.registry import registry
+
+    make_parent, _, observed, children = harness
+    parent = make_parent()
+    parent._session_messages = [{"role": "user", "content": "Private parent context"}]
+    tasks = [{"goal": "Valid first task"}, {"goal": "Invalid second task"}]
+    if source == "task":
+        tasks[1]["fork_context"] = "false"
+    else:
+        extension = get_subagent_extension()
+        original = extension.child_options
+        def options(task):
+            result = original(task)
+            if task["goal"] == "Invalid second task":
+                if source == "policy_exception":
+                    raise RuntimeError("Cannot determine child policy")
+                result["fork_context"] = "false"
+            return result
+        monkeypatch.setattr(extension, "child_options", options)
+    handler = registry.get_entry("delegate_task").handler
+    refused = json.loads(handler({"tasks": tasks}, parent_agent=parent))
+    assert refused.get("error"), refused
+    assert not observed and not children
+    assert json.loads(handler({"action": "list"}, parent_agent=parent))["subagents"] == []
+    parent.close()

@@ -7,7 +7,7 @@ activation uses current tools, skills, instructions and credentials.
 ## Host requirements and enablement
 
 This plugin requires the proposed retained-conversation host changes on
-`feat/resumable-delegation` (validated at `224ba76510974bc2a1a14c176db0bf3e1af779cd`,
+`feat/resumable-delegation` (validated at `51328ec601d2f46d1b0d62dd3c9f74853cb24dbd`,
 based on upstream `f4ac0bea1ea50bba62886fb0b7e308e4edee8fd3`). These changes are
 not yet merged into upstream Hermes; an unpatched release is not supported.
 
@@ -86,9 +86,10 @@ New children fork conversation context by default. `tasks[].fork_context: false`
 starts fresh with the assignment and supplied context. A fork copies user turns,
 final answers and compaction summaries into the child's own history; tool-call
 history and private reasoning are excluded. Include needed tool findings in
-`context`. The host currently supplies the fork default when a delegation extension
-is active or a retained launch is requested; the plugin exposes the per-task choice.
-Ordinary delegation without an extension remains fresh by default.
+`context`. This plugin explicitly requests the fork default through its
+`child_options` policy. Core stays fresh by default: merely registering an extension
+or retaining a conversation does not enable forking. An explicit per-task boolean
+overrides the plugin preference. Ordinary delegation remains fresh without this opt-in.
 
 Resume supplies the next assignment and optionally a top-level `model` within the
 saved provider. Changing providers requires a new child. Saved routes survive changes
@@ -147,7 +148,8 @@ admission failure, live controls, and unload are covered. External provider exec
 is replaced. Routing tests use real host credential resolution to check mixed-route
 batches, endpoint/credential separation, refreshed credentials on resume, saved model
 changes, and invalid selection refusing a whole batch before launch.
-Core tests separately protect profile isolation, explicit tool consent,
+Core tests separately protect unchanged fresh defaults for generic/disabled/unloaded
+extensions and retained API calls, profile isolation, explicit tool consent,
 and extension removal, plus durable storage, contention and review safety.
 
 ## License
