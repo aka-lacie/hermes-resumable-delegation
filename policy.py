@@ -21,7 +21,12 @@ class RetainedDelegation(SubagentExtension):
 
     def extend_schema(self, schema):
         schema["parameters"] = extend_schema(schema["parameters"])
+        schema["description"] = schema["description"].replace(
+            "Children know nothing of this conversation: pass everything needed via 'context', including any required ",
+            "With fork_context=false, pass all needed background via 'context', including any required ")
         schema["description"] += (
+            "\nNew children fork conversation context by default; tasks[].fork_context=false starts fresh. "
+            "Forks include user turns, final answers and compaction summaries, excluding tool history and private reasoning."
             "\nFor spawn, tasks[].model and tasks[].provider override the configured delegation route per child. "
             "A provider override requires an explicit model. On resume, only model can change within the saved provider."
             "\nCompleted children retain their conversations on disk. Resume by session_id with a new assignment; "

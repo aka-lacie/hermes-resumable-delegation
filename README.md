@@ -46,6 +46,7 @@ and legacy live-ID controls. It does not replace or monkeypatch the execution en
 
 ```json
 {"tasks": [{"goal": "Review this PR", "title": "PR review", "fork_context": true}]}
+{"tasks": [{"goal": "Independently review this function", "context": "Inspect src/parser.py for edge cases.", "fork_context": false}]}
 {"tasks": [{"goal": "Review the API", "provider": "review-provider", "model": "review-model"}, {"goal": "Check the tests", "model": "fast-model"}]}
 {"action": "resume", "session_id": "<child ID>", "message": "I fixed the race; review the updated diff."}
 {"action": "list"}
@@ -80,6 +81,14 @@ profile, without reusing another route's endpoint, request overrides or fallback
 chain. Different tasks in one batch may select different routes. Omitting both
 selectors preserves normal delegation defaults. Names in the example above are
 placeholders for providers/models available in your profile.
+
+New children fork conversation context by default. `tasks[].fork_context: false`
+starts fresh with the assignment and supplied context. A fork copies user turns,
+final answers and compaction summaries into the child's own history; tool-call
+history and private reasoning are excluded. Include needed tool findings in
+`context`. The host currently supplies the fork default when a delegation extension
+is active or a retained launch is requested; the plugin exposes the per-task choice.
+Ordinary delegation without an extension remains fresh by default.
 
 Resume supplies the next assignment and optionally a top-level `model` within the
 saved provider. Changing providers requires a new child. Saved routes survive changes

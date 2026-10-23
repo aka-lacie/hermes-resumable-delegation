@@ -41,4 +41,18 @@ def extend_schema(parameters):
         "Use a specific provider name, not auto. Hermes resolves its credentials and transport from this profile. "
         "Omit to keep the configured delegation provider or inherit the parent's route.",
     }
+    task_props = props["tasks"]["items"]["properties"]
+    task_props["fork_context"] = {
+        "type": "boolean", "default": True,
+        "description": "Copy the parent's user turns, final answers and compaction summaries into this new child "
+        "(default true). Tool history and private reasoning are excluded. Set false to start fresh with only "
+        "the assignment and supplied context. Later parent turns are not synchronized on resume.",
+    }
+    task_props["goal"]["description"] = (
+        "What this subagent should accomplish. Be specific about scope and expected output. "
+        "The child inherits conversation context unless fork_context is false.")
+    task_props["context"]["description"] = (
+        "Additional background for this child: paths, evidence, constraints or required output style. "
+        "Tool results are not inherited; include any needed findings. With fork_context=false, "
+        "supply all background needed for the assignment.")
     return parameters
