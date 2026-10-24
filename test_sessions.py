@@ -139,9 +139,20 @@ def test_live_controls_use_stable_session_id(harness, monkeypatch):
     started, finish = threading.Event(), threading.Event()
     original = AIAgent.run_conversation
     def blocked(child, **kwargs):
-        started.set()
-        assert finish.wait(20)
-        return original(child, **kwargs)
+        # The simulated turn must enter the runtime's steering admission window.
+        # The integration fork has typed input turns; upstream hosts may not yet.
+        import importlib.util
+        steering = None
+        if importlib.util.find_spec("agent.steering") is not None:
+            from agent import steering
+            steering.begin_input_turn(child)
+        try:
+            started.set()
+            assert finish.wait(20)
+            return original(child, **kwargs)
+        finally:
+            if steering is not None:
+                steering.finish_input_turn(child)
     monkeypatch.setattr(AIAgent, "run_conversation", blocked)
     with ThreadPoolExecutor(max_workers=1) as pool:
         future = pool.submit(contextvars.copy_context().run, delegate_task,

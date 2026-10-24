@@ -73,3 +73,19 @@ def harness(tmp_path, monkeypatch):
         for child in children:
             child.close()
         db.close()
+
+
+def install_routing_plugin(home):
+    """Install this package under a real temporary profile with its routing settings."""
+    import shutil
+    import hermes_yaml as yaml
+    config_path = home / "config.yaml"
+    cfg = yaml.safe_load(config_path.read_text())
+    delegation = cfg.setdefault("delegation", {})
+    delegation["backend"] = "resumable"
+    delegation["backends"] = {"resumable": {"difficulty_routes": delegation.pop("difficulty_routes", {})}}
+    cfg["plugins"] = {"enabled": ["resumable-delegation"],
+                      "entries": {"resumable-delegation": {"allow_tool_override": True}}}
+    config_path.write_text(yaml.safe_dump(cfg))
+    shutil.copytree(Path(__file__).parent, home / "plugins" / "resumable-delegation",
+                    ignore=shutil.ignore_patterns("test_*", "__pycache__", ".git", ".pytest_cache"))

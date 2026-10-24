@@ -1,5 +1,6 @@
 """Optional per-child selection through Hermes' upstream delegation backend API."""
 from agent.delegation_provider import DelegationProvider, DelegationRouteError
+from . import difficulty
 
 
 class RetainedRouting(DelegationProvider):
@@ -23,6 +24,7 @@ class RetainedRouting(DelegationProvider):
 
     def task_parameters(self, config):
         return {
+            **difficulty.parameters(self.settings(config)),
             "child_model": {"type": "string", "description":
                 "Optional model for this new child. Keeps the configured provider/endpoint unless child_provider is supplied."},
             "child_provider": {"type": "string", "description":
@@ -37,7 +39,7 @@ class RetainedRouting(DelegationProvider):
     def route_task(self, task, config):
         # Match upstream's default strategy when no selector is supplied. Speed
         # tier is an explicit backend decision, not an arbitrary config passthrough.
-        route = {k: v for k, v in config.items() if k != "service_tier"}
+        route = difficulty.route_for(task, config, self.settings(config))
         pins = {}
         for field, target in (("child_model", "model"), ("child_provider", "provider")):
             if field in task:

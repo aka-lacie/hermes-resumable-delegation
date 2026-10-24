@@ -58,6 +58,28 @@ changing this configuration. If you disable/remove the plugin while `resumable`
 is selected, switch back to an installed backend; Hermes refuses unavailable
 backends instead of silently choosing another route.
 
+Optional difficulty choices live under the same backend, without core patches:
+
+```yaml
+delegation:
+  backend: resumable
+  backends:
+    resumable:
+      difficulty_routes:
+        easy: {model: fast-model, reasoning_effort: low}
+        medium: {}
+        hard: {model: review-model, reasoning_effort: high}
+```
+
+Only configured levels are advertised as `tasks[].difficulty`. A level overlays
+the ordinary delegation route; explicit `child_model` / `child_provider` win last.
+Omitting difficulty uses the normal default, including for nested delegation.
+Routes may set model, provider, endpoint, credentials, API mode, request overrides,
+fallbacks and reasoning effort. Transport `command`/`args` belong in provider
+configuration and are refused in difficulty routes. A bad choice refuses only its
+task. When migrating the personal fork, move `delegation.difficulty_routes` into
+`delegation.backends.resumable.difficulty_routes`; no personal routes ship here.
+
 ## Model-facing interface
 
 ```json
