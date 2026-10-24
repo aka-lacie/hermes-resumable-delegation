@@ -1,6 +1,7 @@
 """Retained delegation policy using only Hermes' documented plugin contracts."""
 import json
 from agent.subagent_extension import SubagentExtension
+from .fork_context import conversation_snapshot
 from .presentation import _roster_entry, extend_schema
 
 
@@ -38,6 +39,9 @@ class RetainedDelegation(SubagentExtension):
             "query searches older retained sessions. observe reads without waking; close retires an idle child. "
             "There is no idle expiry. Supply changed context in your follow-up assignment.")
         return schema
+
+    def format_fork_history(self, messages, *, task):
+        return conversation_snapshot(messages)
 
     def format_assignment(self, message, *, session_id, timestamp):
         prefix = f"[Parent assignment at {timestamp}]\n"

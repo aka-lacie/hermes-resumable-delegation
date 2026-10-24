@@ -134,7 +134,13 @@ starts fresh with the assignment and supplied context. A fork copies user turns,
 final answers and compaction summaries into the child's own history; tool-call
 history and private reasoning are excluded. Include needed tool findings in
 `context`. This plugin explicitly requests the fork default through its
-`child_options` policy. Core stays fresh by default: merely registering an extension
+`child_options` policy and implements the format in `fork_context.py` through
+`SubagentExtension.format_fork_history`. The host supplies an unformatted, detached
+snapshot; this plugin chooses the conversation-only projection. Other extensions
+can retain completed tool exchanges or supply a different projection. Core validates
+and persists the result, and rejects an explicit fork if no formatter is enabled.
+Preserving history alone does not guarantee provider prompt-cache reuse because
+child instructions and tool definitions may differ. Core stays fresh by default: merely registering an extension
 or retaining a conversation does not enable forking. An explicit per-task boolean
 overrides the plugin preference. Ordinary delegation remains fresh without this opt-in.
 
