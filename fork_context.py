@@ -33,4 +33,3 @@ def conversation_snapshot(messages):
             row["finish_reason"] = "stop"
         result.append(row)
     return result
-
