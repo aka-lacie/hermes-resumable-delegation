@@ -1,23 +1,34 @@
 """Optional per-child selection through Hermes' upstream delegation backend API."""
+from collections.abc import Mapping
 from agent.delegation_provider import DelegationProvider, DelegationRouteError
 from . import difficulty
 
 
 class RetainedRouting(DelegationProvider):
-    def __init__(self, ctx):
+    def __init__(self, ctx, *, name="per-task"):
         self.ctx = ctx
+        self._name = name
 
     @property
     def name(self):
-        return "resumable"
+        return self._name
 
     @property
     def display_name(self):
-        return "Persistent Subagents"
+        return "Per-task routing" if self.name == "per-task" else "Per-task routing (legacy: resumable)"
 
     @property
     def summary(self):
-        return "Choose a model and configured provider for each retained child."
+        return "Choose models and providers per task, with optional difficulty routes."
+
+    def settings(self, config):
+        # Keep saved backend pins and earlier profile configuration usable.
+        # An explicit canonical block, including {}, takes precedence.
+        backends = config.get("backends") if isinstance(config, Mapping) else None
+        if not isinstance(backends, Mapping):
+            return {}
+        selected = backends.get("per-task") if "per-task" in backends else backends.get("resumable")
+        return selected if isinstance(selected, Mapping) else {}
 
     def is_available(self):
         return self.ctx.get_config("enabled", True) is True

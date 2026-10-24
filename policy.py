@@ -18,7 +18,7 @@ class RetainedDelegation(SubagentExtension):
 
     def child_options(self, task):
         if any(key in task for key in ("model", "provider")):
-            raise ValueError("Spawn selectors moved to the resumable backend: use child_model/child_provider, "
+            raise ValueError("Spawn selectors moved to the per-task backend: use child_model/child_provider, "
                              "or the active backend's declared parameters. Start a new parent session to refresh tools.")
         title = str(task.get("title") or " ".join(str(task["goal"]).split())[:80]).strip() or "Delegated task"
         return {"retain": True, "fork_context": True,

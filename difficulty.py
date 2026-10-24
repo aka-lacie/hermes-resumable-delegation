@@ -21,7 +21,7 @@ def parameters(settings):
 def route_for(task, config, settings):
     routes = settings.get("difficulty_routes") or {}
     if not isinstance(routes, dict):
-        raise DelegationRouteError("resumable difficulty_routes must be a mapping.")
+        raise DelegationRouteError("per-task difficulty_routes must be a mapping.")
     route = deepcopy({k: v for k, v in config.items() if k != "service_tier"})
     level = task.get("difficulty")
     if level is None:

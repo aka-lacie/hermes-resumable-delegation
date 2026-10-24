@@ -107,7 +107,7 @@ def test_task_pins_through_registry_and_real_profile_provider_resolution(tmp_pat
                         assert all(c.api_key == "test-default" for c in leaves)
                         # With no delegation defaults, model-only inherits the live parent connection.
                         with monkeypatch.context() as isolated:
-                            isolated.setattr(dt, "_load_config", lambda: {"backend": "resumable"})
+                            isolated.setattr(dt, "_load_config", lambda: {"backend": "per-task"})
                             inherited = json.loads(registry.dispatch("delegate_task", {"tasks": [
                                 {"goal": "Check a model on the parent route", "child_model": "parent-route-model"},
                             ]}, parent_agent=parent))

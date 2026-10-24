@@ -7,3 +7,4 @@ def register(ctx):
     ctx.register_subagent_extension(RetainedDelegation(ctx))
     from .routing import RetainedRouting
     ctx.register_delegation_provider(RetainedRouting(ctx))
+    ctx.register_delegation_provider(RetainedRouting(ctx, name="resumable"))  # Earlier configs and session pins.

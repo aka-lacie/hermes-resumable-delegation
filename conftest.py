@@ -82,8 +82,8 @@ def install_routing_plugin(home):
     config_path = home / "config.yaml"
     cfg = yaml.safe_load(config_path.read_text())
     delegation = cfg.setdefault("delegation", {})
-    delegation["backend"] = "resumable"
-    delegation["backends"] = {"resumable": {"difficulty_routes": delegation.pop("difficulty_routes", {})}}
+    delegation["backend"] = "per-task"
+    delegation["backends"] = {"per-task": {"difficulty_routes": delegation.pop("difficulty_routes", {})}}
     cfg["plugins"] = {"enabled": ["resumable-delegation"],
                       "entries": {"resumable-delegation": {"allow_tool_override": True}}}
     config_path.write_text(yaml.safe_dump(cfg))

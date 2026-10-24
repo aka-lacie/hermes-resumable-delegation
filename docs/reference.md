@@ -12,8 +12,8 @@ These keys live under `plugins.entries.resumable-delegation.settings`:
 | `review_skills` | `true` | Request eligible skills-only review for retained children. |
 
 The profile must also enable the plugin and grant `allow_tool_override: true`.
-Setting `enabled: false` while `delegation.backend: resumable` remains selected
-makes routing unavailable; select another installed backend when disabling it.
+Setting `enabled: false` while `per-task` (or its `resumable` alias) remains
+selected makes routing unavailable; select another installed backend when disabling it.
 
 There is no global fork setting here: the plugin defaults to inheritance and each
 spawn task can set `fork_context: false`. Retention and forking are independent.
@@ -50,7 +50,7 @@ are text, not necessarily parseable JSON; stored transcripts remain complete.
 
 ## Routing details
 
-The optional `resumable` backend combines normal delegation settings, a configured
+The optional `per-task` backend combines normal delegation settings, a configured
 difficulty route, and explicit child selectors, in that order. Model-only selection
 keeps the delegation provider/endpoint, or the parent's route if no delegation
 route is configured. A model name does not implicitly select a provider.
@@ -105,11 +105,19 @@ saved history and explicit host lifecycle operations remain available.
 
 These changes concern earlier versions of this plugin, not ordinary upstream users:
 
+- The routing backend is now `per-task` (displayed as **Per-task routing**).
+  Rename `delegation.backend: resumable` to `per-task` and move the settings block
+  from `delegation.backends.resumable` to `delegation.backends.per-task`.
+  The old backend name and settings remain accepted for compatibility with earlier
+  configurations and saved session backend selections. If both settings blocks exist,
+  the `per-task` block wins, including an explicitly empty block. This changes only
+  routing names; it does not enable or disable conversation retention.
+
 - Replace spawn `tasks[].model` / `tasks[].provider` with `child_model` /
-  `child_provider`, and select `delegation.backend: resumable`. Old selector names
+  `child_provider`, and select `delegation.backend: per-task`. Old selector names
   are rejected rather than silently ignored. Resume's top-level `model` is unchanged.
 - Move `delegation.difficulty_routes` to
-  `delegation.backends.resumable.difficulty_routes`.
+  `delegation.backends.per-task.difficulty_routes`.
 - Programmatic retained launches pass backend parameters through
   `launch_session(task_parameters={...})`. The separate run-handle
   `launch(SubagentLaunchRequest(...))` API remains separate from backend routing.

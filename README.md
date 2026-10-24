@@ -12,8 +12,8 @@ The plugin combines five features. They work together, but solve different probl
 | --- | --- | --- |
 | **Continuation** | Retain completed conversations; resume, observe or close them by stable session ID. | Enabled with the plugin. |
 | **Context forking** | Start a child with selected conversation history from its parent. | On by default for new children; opt out per task. |
-| **Model/provider selection** | Choose a different model or configured provider for each child. | Opt in with `delegation.backend: resumable`. |
-| **Difficulty routing** | Let the agent choose among your `easy`, `medium` and `hard` routes. | Optional configuration under the `resumable` backend. |
+| **Model/provider selection** | Choose a different model or configured provider for each child. | Opt in with `delegation.backend: per-task`. |
+| **Difficulty routing** | Let the agent choose among your `easy`, `medium` and `hard` routes. | Optional configuration under the `per-task` backend. |
 | **Skills review** | Request an eligible child's post-task review to update skills. | Requested by default; can be disabled. |
 
 Forking determines **how a child starts**; continuation preserves **what it learns**.
@@ -28,7 +28,8 @@ not yet merged upstream. Use a patched host with native SessionDB and in-process
 plugins; managed workers using RuntimeSessionStore are not supported.
 
 The plugin ID remains `resumable-delegation`; its optional routing backend is
-`resumable`. Use those identifiers in commands and configuration below.
+`per-task`. Use those identifiers in commands and configuration below.
+The former backend name `resumable` remains a compatibility alias.
 
 No extra Python packages, services or companion plugins are required. Configure
 providers and credentials through Hermes as usual.
@@ -58,7 +59,8 @@ providers and credentials through Hermes as usual.
 3. Restart the Hermes process serving that profile and start a new parent
    conversation so its tools include the plugin's controls.
 
-This is enough for continuation, context forking and skills review. Model/provider
+The routing backend only chooses models/providers; it is not required for
+resumability. This setup enables continuation, context forking and skills review. Model/provider
 selectors and difficulty choices require the optional routing setup below.
 
 ## 1. Continue a child's work
@@ -123,7 +125,7 @@ parent conversation:
 
 ```yaml
 delegation:
-  backend: resumable
+  backend: per-task
 ```
 
 Now spawn tasks can use `child_model` and `child_provider`:
@@ -150,9 +152,9 @@ Optionally define choices under that backend. Replace the model placeholders:
 
 ```yaml
 delegation:
-  backend: resumable
+  backend: per-task
   backends:
-    resumable:
+    per-task:
       difficulty_routes:
         easy: {model: fast-model, reasoning_effort: low}
         medium: {}
@@ -194,7 +196,7 @@ Process loss stops active execution; resuming saved history does not replay a
 crashed task. Earlier one-off delegates are not automatically enrolled.
 
 Before disabling or removing the plugin, change `delegation.backend` back to
-`default` (or another installed backend) if it is set to `resumable`. Saved history
+`default` (or another installed backend) if it is set to `per-task` or its legacy `resumable` alias. Saved history
 remains, but the plugin's model-facing continuation controls disappear.
 
 See the [reference](docs/reference.md) for observation limits, routing details,

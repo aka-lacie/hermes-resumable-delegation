@@ -16,7 +16,7 @@ def routing(harness, monkeypatch):
 
     cfg = load_config()
     cfg["delegation"] = {
-        "backend": "resumable", "model": "default-model", "base_url": "http://127.0.0.1:2/v1",
+        "backend": "per-task", "model": "default-model", "base_url": "http://127.0.0.1:2/v1",
         "api_key": "default-test-key", "api_mode": "chat_completions",
         "request_overrides": {"temperature": 0.9},
         "fallback_providers": [{"provider": "custom", "model": "default-fallback"}],
