@@ -32,15 +32,6 @@ def extend_schema(parameters):
     props["tasks"]["items"]["properties"]["title"] = {
         "type": "string", "description": "Optional short stable title. Defaults to a shortened initial assignment.",
     }
-    props["tasks"]["items"]["properties"]["model"] = {
-        "type": "string", "description": "Optional model for this new child, overriding delegation defaults. "
-        "Keeps the selected provider unless provider is also supplied; no provider inference.",
-    }
-    props["tasks"]["items"]["properties"]["provider"] = {
-        "type": "string", "description": "Optional configured provider for this new child; requires model. "
-        "Use a specific provider name, not auto. Hermes resolves its credentials and transport from this profile. "
-        "Omit to keep the configured delegation provider or inherit the parent's route.",
-    }
     task_props = props["tasks"]["items"]["properties"]
     task_props["fork_context"] = {
         "type": "boolean", "default": True,

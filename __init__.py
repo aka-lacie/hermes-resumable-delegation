@@ -5,3 +5,5 @@ def register(ctx):
         raise RuntimeError("resumable-delegation requires Hermes' subagent extension API")
     from .policy import RetainedDelegation
     ctx.register_subagent_extension(RetainedDelegation(ctx))
+    from .routing import RetainedRouting
+    ctx.register_delegation_provider(RetainedRouting(ctx))

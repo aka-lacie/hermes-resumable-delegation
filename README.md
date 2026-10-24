@@ -7,8 +7,8 @@ activation uses current tools, skills, instructions and credentials.
 ## Host requirements and enablement
 
 This plugin requires the proposed retained-conversation host changes on
-`feat/resumable-delegation` (validated at `51328ec601d2f46d1b0d62dd3c9f74853cb24dbd`,
-based on upstream `f4ac0bea1ea50bba62886fb0b7e308e4edee8fd3`). These changes are
+`feat/resumable-delegation` at `188cefc390`, based on upstream `5894e750c3db`,
+including the backend-routing simplification described below. These changes are
 not yet merged into upstream Hermes; an unpatched release is not supported.
 
 Retained operations require a native SessionDB owner. Managed compute workers
@@ -16,8 +16,8 @@ using RuntimeSessionStore cannot currently retain conversations. The existing
 worker restrictions remain enforced.
 
 
-Requires the host's documented `ctx.register_subagent_extension` and
-`ctx.subagent_lifecycle` conversation APIs. Older Hermes versions fail registration
+Requires the host's documented `ctx.register_subagent_extension`,
+`ctx.register_delegation_provider`, and `ctx.subagent_lifecycle` conversation APIs. Older Hermes versions fail registration
 with an explicit compatibility error. Currently requires in-process plugin loading;
 Hermes refuses this extension under `plugins.isolation: host`.
 
@@ -42,12 +42,28 @@ is Hermes' existing operator consent gate for changing the built-in `delegate_ta
 surface. The plugin preserves normal spawn routing, limits, completion delivery
 and legacy live-ID controls. It does not replace or monkeypatch the execution engine.
 
+For direct model/provider selection on spawn, also select the plugin's optional
+routing backend (merge this into your existing delegation section):
+
+```yaml
+delegation:
+  backend: resumable
+```
+
+Enabling the plugin does not change `delegation.backend`. Retention and fork controls
+also work with `default` or another routing plugin; those keep their own route
+parameters. Only `resumable` advertises `child_model` and `child_provider`. A session
+keeps the backend its tools were built with, so start a new parent session after
+changing this configuration. If you disable/remove the plugin while `resumable`
+is selected, switch back to an installed backend; Hermes refuses unavailable
+backends instead of silently choosing another route.
+
 ## Model-facing interface
 
 ```json
 {"tasks": [{"goal": "Review this PR", "title": "PR review", "fork_context": true}]}
 {"tasks": [{"goal": "Independently review this function", "context": "Inspect src/parser.py for edge cases.", "fork_context": false}]}
-{"tasks": [{"goal": "Review the API", "provider": "review-provider", "model": "review-model"}, {"goal": "Check the tests", "model": "fast-model"}]}
+{"tasks": [{"goal": "Review the API", "child_provider": "review-provider", "child_model": "review-model"}, {"goal": "Check the tests", "child_model": "fast-model"}]}
 {"action": "resume", "session_id": "<child ID>", "message": "I fixed the race; review the updated diff."}
 {"action": "list"}
 {"action": "list", "query": "PR review"}
@@ -72,7 +88,8 @@ text, not necessarily parseable JSON; stored transcripts remain complete.
 Older hosts still return their original observation format: this plugin does not
 patch host storage or reconstruct metadata that the host has discarded.
 
-Each spawn task can select `model` and an optional configured `provider`. Model-only
+With the `resumable` backend, each spawn task can select `child_model` and an
+optional configured `child_provider`. Model-only
 selection keeps the delegation provider/endpoint (or the parent's route when no
 delegation route is configured); Hermes does not infer a provider from a model name.
 A provider override requires an explicit model and a specific provider name, not
@@ -80,7 +97,15 @@ A provider override requires an explicit model and a specific provider name, not
 profile, without reusing another route's endpoint, request overrides or fallback
 chain. Different tasks in one batch may select different routes. Omitting both
 selectors preserves normal delegation defaults. Names in the example above are
-placeholders for providers/models available in your profile.
+placeholders for providers/models available in your profile. Invalid routes are
+refused per task; valid siblings still run, matching upstream delegation behavior.
+
+Migration from the earlier draft: spawn `tasks[].model` / `tasks[].provider` become
+`tasks[].child_model` / `tasks[].child_provider`, with `delegation.backend: resumable`.
+The plugin rejects the old fields instead of silently running on the default route.
+The top-level `model` on resume is unchanged. Programmatic retained launches now
+pass backend parameters through `launch_session(task_parameters={...})`; the
+separate upstream run-handle `launch(SubagentLaunchRequest(...))` API is unchanged.
 
 New children fork conversation context by default. `tasks[].fork_context: false`
 starts fresh with the assignment and supplied context. A fork copies user turns,
@@ -147,7 +172,8 @@ through registry, inline and plugin API paths; changed tools, workspace/fork his
 admission failure, live controls, and unload are covered. External provider execution
 is replaced. Routing tests use real host credential resolution to check mixed-route
 batches, endpoint/credential separation, refreshed credentials on resume, saved model
-changes, and invalid selection refusing a whole batch before launch.
+changes, per-task refusal, other routing backends, stale-selector rejection, and
+backend parameters passed through the retained-session API.
 Core tests separately protect unchanged fresh defaults for generic/disabled/unloaded
 extensions and retained API calls, profile isolation, explicit tool consent,
 and extension removal, plus durable storage, contention and review safety.

@@ -16,6 +16,9 @@ class RetainedDelegation(SubagentExtension):
         return self.ctx.get_config("enabled", True) is True
 
     def child_options(self, task):
+        if any(key in task for key in ("model", "provider")):
+            raise ValueError("Spawn selectors moved to the resumable backend: use child_model/child_provider, "
+                             "or the active backend's declared parameters. Start a new parent session to refresh tools.")
         title = str(task.get("title") or " ".join(str(task["goal"]).split())[:80]).strip() or "Delegated task"
         return {"retain": True, "fork_context": True,
                 "review_skills": self.ctx.get_config("review_skills", True) is True, "title": title}
@@ -28,8 +31,8 @@ class RetainedDelegation(SubagentExtension):
         schema["description"] += (
             "\nNew children fork conversation context by default; tasks[].fork_context=false starts fresh. "
             "Forks include user turns, final answers and compaction summaries, excluding tool history and private reasoning."
-            "\nFor spawn, tasks[].model and tasks[].provider override the configured delegation route per child. "
-            "A provider override requires an explicit model. On resume, only model can change within the saved provider."
+            "\nSpawn routing uses the active delegation backend and its declared task parameters. "
+            "On resume, only model can change within the saved provider."
             "\nCompleted children retain their conversations on disk. Resume by session_id with a new assignment; "
             "tools and skills refresh at activation. list shows recent running/idle children ordered by activity; "
             "query searches older retained sessions. observe reads without waking; close retires an idle child. "
