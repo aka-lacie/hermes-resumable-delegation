@@ -7,8 +7,8 @@ activation uses current tools, skills, instructions and credentials.
 ## Host requirements and enablement
 
 This plugin requires the proposed retained-conversation host changes on
-`feat/resumable-delegation` at `188cefc390`, based on upstream `5894e750c3db`,
-including the backend-routing simplification described below. These changes are
+`feat/resumable-delegation` at `63ef3d0fc0`, based on upstream `5894e750c3db`,
+including backend routing and the plugin-owned fork formatting hook described below. These changes are
 not yet merged into upstream Hermes; an unpatched release is not supported.
 
 Retained operations require a native SessionDB owner. Managed compute workers
@@ -17,7 +17,8 @@ worker restrictions remain enforced.
 
 
 Requires the host's documented `ctx.register_subagent_extension`,
-`ctx.register_delegation_provider`, and `ctx.subagent_lifecycle` conversation APIs. Older Hermes versions fail registration
+`ctx.register_delegation_provider`, the `SubagentExtension.format_fork_history` hook,
+and `ctx.subagent_lifecycle` conversation APIs. Older Hermes versions fail registration
 with an explicit compatibility error. Currently requires in-process plugin loading;
 Hermes refuses this extension under `plugins.isolation: host`.
 
