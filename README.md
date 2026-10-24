@@ -24,7 +24,7 @@ work, and skills review can retain reusable lessons beyond that conversation.
 
 **Development preview:** this requires the proposed Hermes host changes on
 `feat/resumable-delegation` at tested host commit
-`8a6ce08917e71c57643d4f4524709034597bb4e7` (upstream base `5894e750c3db`). They are
+`9de1299c3ce71391b227928a78f025aaa6e321f5` (upstream base `a480a27e76dc`). They are
 not yet merged upstream. Use a patched host with native SessionDB and in-process
 plugins; managed workers using RuntimeSessionStore are not supported.
 

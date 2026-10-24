@@ -73,4 +73,3 @@ class RetainedDelegation(SubagentExtension):
         elif action == "close":
             result = {"action": action, **_roster_entry(result)}
         return json.dumps(result, ensure_ascii=False)
-

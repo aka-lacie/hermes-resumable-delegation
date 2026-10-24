@@ -156,3 +156,11 @@ reconstruction; internal `/review` isolation, durable fork content and assignmen
 separation, activation budgets, timeout retirement, invalid parameters and unload.
 Host tests cover fresh defaults,
 ownership, profile isolation, transcript validation, contention and review safety.
+
+A separate Linux acceptance run used a disposable profile and an existing local
+provider with real model calls. It covered fresh and forked children, model/provider
+selection, resume after parent reconstruction, bounded observation, close/refusal,
+and background results consumed by a real parent turn through the CLI completion
+consumer. This validates the native in-process path; it does not establish gateway
+platform delivery, managed-worker support, or macOS/Windows compatibility. The full
+host suite remains unverified. The README pins the tested host revision.
