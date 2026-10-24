@@ -18,6 +18,20 @@ makes routing unavailable; select another installed backend when disabling it.
 There is no global fork setting here: the plugin defaults to inheritance and each
 spawn task can set `fork_context: false`. Retention and forking are independent.
 
+## Upstream controls and plugin additions
+
+On the reviewed upstream base (`5894e750c3db`), `delegate_task` already supports
+`spawn`, `list`, `steer` and `stop`. Native live controls target `subagent_id`.
+The retained-session adapter resolves a stable `session_id` to the current live
+child and calls the existing upstream steering/stopping implementation. Legacy
+live-ID requests remain supported.
+
+The plugin's `list` returns owned retained conversations, including idle children,
+and adds search across older/closed entries. `resume`, `observe` and `close` are
+new model-facing actions supplied by this plugin and the retained-session host API.
+Upstream also has a separate plugin run-handle API for launch, status, wait, result,
+cancel and steer; that API is distinct from continuing a completed conversation.
+
 ## Listing and observation
 
 Spawn and completion return stable session IDs. Titles are supplied by the parent

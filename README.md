@@ -10,7 +10,7 @@ The plugin combines five features. They work together, but solve different probl
 
 | Feature | What it adds | When it applies |
 | --- | --- | --- |
-| **Continuation** | Resume completed children by stable session ID; list, observe, steer, stop or close them. | Enabled with the plugin. |
+| **Continuation** | Retain completed conversations; resume, observe or close them by stable session ID. | Enabled with the plugin. |
 | **Context forking** | Start a child with selected conversation history from its parent. | On by default for new children; opt out per task. |
 | **Model/provider selection** | Choose a different model or configured provider for each child. | Opt in with `delegation.backend: resumable`. |
 | **Difficulty routing** | Let the agent choose among your `easy`, `medium` and `hard` routes. | Optional configuration under the `resumable` backend. |
@@ -82,6 +82,10 @@ follow-up to that same conversation:
 Resume reconstructs the child with its saved history and current tools, skills,
 instructions and credentials. Include relevant changes in the new assignment;
 later parent turns are not copied automatically.
+
+Hermes already provides `spawn`, `list`, `steer` and `stop` for live delegates.
+This plugin reuses upstream steering/stopping through stable `session_id` targets,
+extends listing to retained conversations, and adds `resume`, `observe` and `close`.
 
 Other controls use the same tool:
 
