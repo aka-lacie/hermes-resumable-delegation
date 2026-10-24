@@ -114,9 +114,15 @@ For an independent assessment, start fresh:
 {"tasks": [{"goal": "Review this function independently", "fork_context": false, "context": "Inspect src/parser.py for edge cases."}]}
 ```
 
-This still creates a resumable child. The plugin owns the filtering policy; core
-captures, validates and persists the snapshot. Different instructions, tools or
-history formatting can reduce reuse of the parent's prompt cache.
+This still creates a resumable child. Forking supplies conversation background;
+it does not copy the parent's persona or system instructions. Children use Hermes'
+existing delegated-worker instructions, and this plugin does not enable loading
+the parent's `SOUL.md` or add separate main/child instruction files.
+
+The plugin owns history filtering; core captures, validates and persists the
+snapshot. Other plugins can choose different history formats, but this hook does
+not replace the child's system prompt or tool definitions. Preserving the parent's
+complete request prefix for prompt-cache reuse is outside the current feature.
 
 ## 3. Choose a model or provider per child
 

@@ -89,8 +89,15 @@ The conversation-only fork projection lives in [`fork_context.py`](../fork_conte
 The host supplies an unformatted, detached boundary; other extensions can retain
 completed tool exchanges or use another projection. Core validates the result and
 persists the child's own history. An explicit fork requires an enabled formatter;
-ordinary core launches remain fresh. Preserving history alone does not guarantee
-prompt-cache hits: model, instructions and tool definitions also matter.
+ordinary core launches remain fresh. The formatter controls history only: it cannot
+replace core's child instructions, select identity policy, or override tool
+definitions. Even system/developer messages returned in history do not replace
+the host-built child prompt. This API does not implement preservation of the
+parent's complete request prefix for prompt-cache reuse.
+
+The plugin retains Hermes' existing delegated-worker instruction policy. It does
+not enable parent `SOUL.md` inheritance or provide role-specific instruction files.
+Conversation continuity is independent of persona and instruction inheritance.
 
 Assignments carry parent provenance and a timestamp. Skills review cannot write
 memory, is cancelled before the child's next activation, and uses host protections
