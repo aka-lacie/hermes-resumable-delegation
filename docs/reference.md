@@ -1,0 +1,118 @@
+# Reference
+
+For installation and examples, start with the [README](../README.md).
+
+## Settings
+
+These keys live under `plugins.entries.resumable-delegation.settings`:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `true` | Enable this extension and make its routing backend available. |
+| `review_skills` | `true` | Request eligible skills-only review for retained children. |
+
+The profile must also enable the plugin and grant `allow_tool_override: true`.
+Setting `enabled: false` while `delegation.backend: resumable` remains selected
+makes routing unavailable; select another installed backend when disabling it.
+
+There is no global fork setting here: the plugin defaults to inheritance and each
+spawn task can set `fork_context: false`. Retention and forking are independent.
+
+## Listing and observation
+
+Spawn and completion return stable session IDs. Titles are supplied by the parent
+or derived from the initial assignment. List returns recent running/idle children
+ordered by activity, with creation/activity timestamps and bounded assignment
+previews. A query searches all owned children, including older and closed entries.
+`limit` defaults to 20 and accepts 1–100 for list entries or observed messages.
+
+Observe does not wake a child or renew its activity. Assistant entries include
+compact tool-call previews: name, file target or command preview. Tool results
+retain their stored `tool_name`. Tool output previews are capped at 1,500 characters;
+longer text keeps its head and tail with an omitted-character count. Assistant prose
+can use the remainder of the 12,000-character window, which includes preview metadata.
+`truncated: true` indicates omitted messages or shortened previews. These previews
+are text, not necessarily parseable JSON; stored transcripts remain complete.
+
+## Routing details
+
+The optional `resumable` backend combines normal delegation settings, a configured
+difficulty route, and explicit child selectors, in that order. Model-only selection
+keeps the delegation provider/endpoint, or the parent's route if no delegation
+route is configured. A model name does not implicitly select a provider.
+
+An explicit `child_provider` uses that provider's current credentials and transport
+from the profile. It does not reuse another route's endpoint, request overrides or
+fallback chain. Different tasks in one batch may use different routes.
+
+Difficulty routes accept `model`, `provider`, `base_url`, `api_key`, `api_mode`,
+`request_overrides`, `fallback_providers` and `reasoning_effort`. Transport
+`command`/`args` belong in provider configuration and are rejected here. A route
+setting `provider` should also supply the appropriate model for that provider.
+
+Saved child routes survive changes to delegation defaults. Credentials refresh on
+each activation; resume can change the model within the saved provider. Parent
+sessions keep the routing backend their tools were built with, so configuration
+changes require a new parent session to expose the new parameters.
+
+## Host boundary and dependencies
+
+The required patched host provides `ctx.register_subagent_extension`,
+`ctx.register_delegation_provider`, `SubagentExtension.format_fork_history` and the
+`ctx.subagent_lifecycle` conversation APIs. Retention requires native SessionDB;
+RuntimeSessionStore-managed workers and retained cross-profile routes are unsupported.
+The extension requires in-process loading and is refused under `plugins.isolation: host`.
+Ordinary nonretained profile delegation remains available.
+
+The plugin owns the model-facing schema/actions, roster presentation, titles,
+assignment formatting, retention preference, fork format, optional routing backend
+and review preference. Hermes owns storage, parent/profile authorization, saved
+route identity, exclusive activation, transcript continuation, current capabilities,
+interruption, review execution and teardown. Registration itself makes no provider
+requests, sends no messages and writes no database or configuration data.
+
+The conversation-only fork projection lives in [`fork_context.py`](../fork_context.py).
+The host supplies an unformatted, detached boundary; other extensions can retain
+completed tool exchanges or use another projection. Core validates the result and
+persists the child's own history. An explicit fork requires an enabled formatter;
+ordinary core launches remain fresh. Preserving history alone does not guarantee
+prompt-cache hits: model, instructions and tool definitions also matter.
+
+Assignments carry parent provenance and a timestamp. Skills review cannot write
+memory, is cancelled before the child's next activation, and uses host protections
+for concurrent skill updates and independent reviewer cleanup.
+
+Workflow, memory, messaging/reaction, provider and steering plugins are not
+prerequisites. The package contains no provider presets, user instructions or
+profile configuration. Removing it restores native model-facing delegation;
+saved history and explicit host lifecycle operations remain available.
+
+## Migrating from earlier drafts
+
+These changes concern earlier versions of this plugin, not ordinary upstream users:
+
+- Replace spawn `tasks[].model` / `tasks[].provider` with `child_model` /
+  `child_provider`, and select `delegation.backend: resumable`. Old selector names
+  are rejected rather than silently ignored. Resume's top-level `model` is unchanged.
+- Move `delegation.difficulty_routes` to
+  `delegation.backends.resumable.difficulty_routes`.
+- Programmatic retained launches pass backend parameters through
+  `launch_session(task_parameters={...})`. The separate run-handle
+  `launch(SubagentLaunchRequest(...))` API remains separate from backend routing.
+
+## Verification
+
+From the patched Hermes checkout, use its canonical test runner and PM-built test
+environment. Set `HERMES_PYTHON` to that test interpreter if it is not activated:
+
+```bash
+scripts/run_tests.sh /path/to/hermes-resumable-delegation -j 2
+scripts/run_tests.sh tests/plugins/test_subagent_extension.py tests/agent/test_delegated_review.py
+```
+
+Tests load the plugin through real discovery in temporary profiles and replace
+external model execution. Coverage includes persistence and resume after parent
+reconstruction; refreshed capabilities; fork/fresh selection and custom formats;
+admission and live controls; mixed routes, credential separation and saved-route
+reconstruction; invalid parameters and unload. Host tests cover fresh defaults,
+ownership, profile isolation, transcript validation, contention and review safety.

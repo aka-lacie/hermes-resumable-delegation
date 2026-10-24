@@ -1,65 +1,144 @@
 # Resumable delegation
 
-An independently installable native Hermes plugin for parent-directed continuation
-of delegated conversations. Idle children occupy disk, not a live agent. Each new
-activation uses current tools, skills, instructions and credentials.
+Give a personal agent delegated conversations it can return to as work develops.
+A child can review a change, finish, and later review your revisions with its earlier
+findings intact. Between assignments, its conversation stays on disk with no live
+agent running.
 
-## Host requirements and enablement
+The plugin combines five features. They work together, but solve different problems:
 
-This plugin requires the proposed retained-conversation host changes on
-`feat/resumable-delegation` at `63ef3d0fc0`, based on upstream `5894e750c3db`,
-including backend routing and the plugin-owned fork formatting hook described below. These changes are
-not yet merged into upstream Hermes; an unpatched release is not supported.
+| Feature | What it adds | When it applies |
+| --- | --- | --- |
+| **Continuation** | Resume completed children by stable session ID; list, observe, steer, stop or close them. | Enabled with the plugin. |
+| **Context forking** | Start a child with selected conversation history from its parent. | On by default for new children; opt out per task. |
+| **Model/provider selection** | Choose a different model or configured provider for each child. | Opt in with `delegation.backend: resumable`. |
+| **Difficulty routing** | Let the agent choose among your `easy`, `medium` and `hard` routes. | Optional configuration under the `resumable` backend. |
+| **Skills review** | Request an eligible child's post-task review to update skills. | Requested by default; can be disabled. |
 
-Retained operations require a native SessionDB owner. Managed compute workers
-using RuntimeSessionStore cannot currently retain conversations. The existing
-worker restrictions remain enforced.
+Forking determines **how a child starts**; continuation preserves **what it learns**.
+A child can start fresh and still be resumed later. Routing chooses who does the
+work, and skills review can retain reusable lessons beyond that conversation.
 
+## Setup
 
-Requires the host's documented `ctx.register_subagent_extension`,
-`ctx.register_delegation_provider`, the `SubagentExtension.format_fork_history` hook,
-and `ctx.subagent_lifecycle` conversation APIs. Older Hermes versions fail registration
-with an explicit compatibility error. Currently requires in-process plugin loading;
-Hermes refuses this extension under `plugins.isolation: host`.
+**Development preview:** this requires the proposed Hermes host changes on
+`feat/resumable-delegation` at `63ef3d0fc0` (upstream base `5894e750c3db`). They are
+not yet merged upstream. Use a patched host with native SessionDB and in-process
+plugins; managed workers using RuntimeSessionStore are not supported.
 
-Install the repository root as a native Hermes plugin named `resumable-delegation`,
-then merge these settings with the
-profile's existing configuration (do not replace other entries):
+No extra Python packages, services or companion plugins are required. Configure
+providers and credentials through Hermes as usual.
 
-```yaml
-plugins:
-  enabled:
-    - resumable-delegation
-  entries:
-    resumable-delegation:
-      allow_tool_override: true
-      settings:
-        enabled: true
-        review_skills: true
+1. Merge this into the target profile's `config.yaml`, preserving existing entries:
+
+   ```yaml
+   plugins:
+     enabled:
+       - resumable-delegation
+     entries:
+       resumable-delegation:
+         allow_tool_override: true
+   ```
+
+   `allow_tool_override` permits the plugin to extend Hermes' existing
+   `delegate_task` tool. It keeps the normal execution limits and completion delivery.
+
+2. Install the plugin in that same profile:
+
+   ```bash
+   hermes plugins install https://github.com/aka-lacie/hermes-resumable-delegation --enable
+   ```
+
+   For a named profile, use `hermes --profile <profile> plugins install ... --enable`.
+
+3. Restart the Hermes process serving that profile and start a new parent
+   conversation so its tools include the plugin's controls.
+
+This is enough for continuation, context forking and skills review. Model/provider
+selectors and difficulty choices require the optional routing setup below.
+
+## 1. Continue a child's work
+
+The following JSON examples are **arguments to `delegate_task`**, used by the
+parent agent. You can ask the parent to perform these actions in normal conversation.
+
+Start a child:
+
+```json
+{"tasks": [{"goal": "Review this PR for concurrency bugs", "title": "Concurrency review"}]}
 ```
 
-Both settings default to true when the plugin is enabled. `allow_tool_override`
-is Hermes' existing operator consent gate for changing the built-in `delegate_task`
-surface. The plugin preserves normal spawn routing, limits, completion delivery
-and legacy live-ID controls. It does not replace or monkeypatch the execution engine.
+Keep the child's `session_id` from spawn or completion. Once it finishes, send a
+follow-up to that same conversation:
 
-For direct model/provider selection on spawn, also select the plugin's optional
-routing backend (merge this into your existing delegation section):
+```json
+{"action": "resume", "session_id": "<child ID>", "message": "I fixed the race; review the updated diff."}
+```
+
+Resume reconstructs the child with its saved history and current tools, skills,
+instructions and credentials. Include relevant changes in the new assignment;
+later parent turns are not copied automatically.
+
+Other controls use the same tool:
+
+| Action | Arguments besides `action` | Effect |
+| --- | --- | --- |
+| `list` | Optional `query`, `limit` | Find owned children; a query also searches older and closed entries. |
+| `observe` | `session_id`, optional `limit` | Read bounded history without waking the child. |
+| `steer` | `session_id`, `message` | Redirect a running child. |
+| `stop` | `session_id` | Interrupt a running child. |
+| `close` | `session_id` | Permanently retire an idle child from reuse, preserving its history. |
+
+Use `steer` or `stop` while a child is busy; resume is for idle children.
+There is no automatic idle expiry or retained-child cap.
+
+## 2. Choose inherited or fresh context
+
+New children inherit user turns, final answers and compaction summaries by default.
+**Tool history and private reasoning are excluded.** Put any needed tool findings
+in the task's `context`.
+
+For an independent assessment, start fresh:
+
+```json
+{"tasks": [{"goal": "Review this function independently", "fork_context": false, "context": "Inspect src/parser.py for edge cases."}]}
+```
+
+This still creates a resumable child. The plugin owns the filtering policy; core
+captures, validates and persists the snapshot. Different instructions, tools or
+history formatting can reduce reuse of the parent's prompt cache.
+
+## 3. Choose a model or provider per child
+
+Add this to the profile's configuration, then restart Hermes and start a new
+parent conversation:
 
 ```yaml
 delegation:
   backend: resumable
 ```
 
-Enabling the plugin does not change `delegation.backend`. Retention and fork controls
-also work with `default` or another routing plugin; those keep their own route
-parameters. Only `resumable` advertises `child_model` and `child_provider`. A session
-keeps the backend its tools were built with, so start a new parent session after
-changing this configuration. If you disable/remove the plugin while `resumable`
-is selected, switch back to an installed backend; Hermes refuses unavailable
-backends instead of silently choosing another route.
+Now spawn tasks can use `child_model` and `child_provider`:
 
-Optional difficulty choices live under the same backend, without core patches:
+```json
+{"tasks": [{"goal": "Review the API", "child_provider": "review-provider", "child_model": "review-model"}, {"goal": "Check the tests", "child_model": "fast-model"}]}
+```
+
+Replace these placeholders with configured providers and available models.
+
+- `child_model` alone keeps the configured delegation provider and endpoint.
+- `child_provider` requires an explicit `child_model` and a named provider, not `auto`.
+- Omitting both uses normal delegation defaults. An invalid route refuses that
+  task; valid siblings can still run.
+- Resume accepts an optional top-level `model` within the child's saved provider.
+  Changing providers requires a new child.
+
+Enabling the plugin does **not** select this backend automatically. Continuation
+and fork controls also work with other routing backends, using their own selectors.
+
+## 4. Configure difficulty routes
+
+Optionally define choices under that backend. Replace the model placeholders:
 
 ```yaml
 delegation:
@@ -72,140 +151,46 @@ delegation:
         hard: {model: review-model, reasoning_effort: high}
 ```
 
-Only configured levels are advertised as `tasks[].difficulty`. A level overlays
-the ordinary delegation route; explicit `child_model` / `child_provider` win last.
-Omitting difficulty uses the normal default, including for nested delegation.
-Routes may set model, provider, endpoint, credentials, API mode, request overrides,
-fallbacks and reasoning effort. Transport `command`/`args` belong in provider
-configuration and are refused in difficulty routes. A bad choice refuses only its
-task. When migrating the personal fork, move `delegation.difficulty_routes` into
-`delegation.backends.resumable.difficulty_routes`; no personal routes ship here.
-
-## Model-facing interface
+The parent can then choose a route without naming a model:
 
 ```json
-{"tasks": [{"goal": "Review this PR", "title": "PR review", "fork_context": true}]}
-{"tasks": [{"goal": "Independently review this function", "context": "Inspect src/parser.py for edge cases.", "fork_context": false}]}
-{"tasks": [{"goal": "Review the API", "child_provider": "review-provider", "child_model": "review-model"}, {"goal": "Check the tests", "child_model": "fast-model"}]}
-{"action": "resume", "session_id": "<child ID>", "message": "I fixed the race; review the updated diff."}
-{"action": "list"}
-{"action": "list", "query": "PR review"}
-{"action": "observe", "session_id": "<child ID>"}
-{"action": "steer", "session_id": "<running child ID>", "message": "Focus on deployment."}
-{"action": "stop", "session_id": "<running child ID>"}
-{"action": "close", "session_id": "<idle child ID>"}
+{"tasks": [{"goal": "Investigate this intermittent race", "difficulty": "hard"}]}
 ```
 
-Spawn/completion return stable session IDs. Titles are parent-supplied or derived
-from the first assignment. List shows running/idle children ordered by last activity,
-with creation/activity timestamps and bounded assignment previews. The default
-window is 20; query searches all owned children, including older/closed entries.
-Observe returns bounded history without waking or renewing a child. With the host
-observation-preview fix, assistant entries include compact `tool_calls` (name,
-file target or command preview), and tool results retain their stored `tool_name`.
-Tool output previews are capped at 1,500 characters; longer text keeps its head
-and tail with an explicit omitted-character count. Assistant prose can use the
-remaining 12,000-character window, which also counts the compact metadata.
-`truncated: true` signals omitted messages or shortened previews. Previews are
-text, not necessarily parseable JSON; stored transcripts remain complete.
-Older hosts still return their original observation format: this plugin does not
-patch host storage or reconstruct metadata that the host has discarded.
+Only configured levels are advertised. `{}` uses the normal route unchanged.
+An explicit `child_model` or `child_provider` overrides the difficulty choice;
+omitting difficulty uses normal defaults, including in nested delegation.
+No model or provider presets ship with the plugin.
 
-With the `resumable` backend, each spawn task can select `child_model` and an
-optional configured `child_provider`. Model-only
-selection keeps the delegation provider/endpoint (or the parent's route when no
-delegation route is configured); Hermes does not infer a provider from a model name.
-A provider override requires an explicit model and a specific provider name, not
-`auto`. It resolves that provider's own credentials and transport from the current
-profile, without reusing another route's endpoint, request overrides or fallback
-chain. Different tasks in one batch may select different routes. Omitting both
-selectors preserves normal delegation defaults. Names in the example above are
-placeholders for providers/models available in your profile. Invalid routes are
-refused per task; valid siblings still run, matching upstream delegation behavior.
+## 5. Control skills review
 
-Migration from the earlier draft: spawn `tasks[].model` / `tasks[].provider` become
-`tasks[].child_model` / `tasks[].child_provider`, with `delegation.backend: resumable`.
-The plugin rejects the old fields instead of silently running on the default route.
-The top-level `model` on resume is unchanged. Programmatic retained launches now
-pass backend parameters through `launch_session(task_parameters={...})`; the
-separate upstream run-handle `launch(SubagentLaunchRequest(...))` API is unchanged.
+Eligible children can receive a post-task review that updates **skills, not memory**.
+The host applies its normal eligibility, cancellation and resource limits; enabling
+review does not guarantee one runs after every task.
 
-New children fork conversation context by default. `tasks[].fork_context: false`
-starts fresh with the assignment and supplied context. A fork copies user turns,
-final answers and compaction summaries into the child's own history; tool-call
-history and private reasoning are excluded. Include needed tool findings in
-`context`. This plugin explicitly requests the fork default through its
-`child_options` policy and implements the format in `fork_context.py` through
-`SubagentExtension.format_fork_history`. The host supplies an unformatted, detached
-snapshot; this plugin chooses the conversation-only projection. Other extensions
-can retain completed tool exchanges or supply a different projection. Core validates
-and persists the result, and rejects an explicit fork if no formatter is enabled.
-Preserving history alone does not guarantee provider prompt-cache reuse because
-child instructions and tool definitions may differ. Core stays fresh by default: merely registering an extension
-or retaining a conversation does not enable forking. An explicit per-task boolean
-overrides the plugin preference. Ordinary delegation remains fresh without this opt-in.
+To disable the plugin's review request, add this under its existing entry:
 
-Resume supplies the next assignment and optionally a top-level `model` within the
-saved provider. Changing providers requires a new child. Saved routes survive changes
-to delegation defaults; current credentials are resolved at each activation.
-Include relevant changes in that assignment: later parent history is
-not synchronized automatically. Assignments are labeled with parent provenance
-and a timestamp. Busy children must be steered or stopped. Close permanently retires
-an idle child while retaining history. There is no idle TTL or retained-child cap;
-normal transcript deletion remains authoritative. This is conversation continuation,
-not execution replay after a crash. Earlier one-off transcripts are not enrolled.
-
-Skills review uses the host's normal eligibility and resource limits. It can update
-skills, cannot write memory, and is cancelled before the next activation. The host
-protects concurrent skill updates and cleans up the reviewer independently of the
-completed child. `review_skills: false` disables this plugin's request for child review.
-
-## Dependencies
-
-There are no additional Python packages, services, or companion plugins to install.
-The plugin uses Hermes' public `SubagentExtension` and plugin-context APIs.
-Workflow, memory, messaging/reaction, provider, and steering plugins are not required.
-Provider setup and credentials stay in Hermes configuration. The parent can select
-configured providers/models per child; no difficulty-routing plugin or policy is
-required. The plugin ships no provider presets, user instructions, or profile configuration.
-
-## Ownership boundary
-
-The plugin owns interface/schema, roster presentation, title/assignment formatting,
-retention opt-in, and review policy. It imports only the documented extension
-contract and calls `ctx.subagent_lifecycle` and `ctx.get_config`.
-
-Hermes owns storage, parent/profile authorization, routing identity, exclusive
-activation, transcript continuation, current capability reconstruction, interruption,
-skills-review execution and safe teardown. Removing the plugin restores native
-model-facing delegation; history and explicit host lifecycle operations remain.
-No external messages, provider requests, database writes, or config writes occur at
-plugin registration.
-
-Sibling messaging and direct user messaging through the retained-child lifecycle
-are not implemented here yet. Those will build on this boundary.
-
-## Verification
-
-From the patched Hermes checkout, use its canonical test runner and PM-built test
-environment (set `HERMES_PYTHON` to the selected test interpreter if not activated):
-
-```bash
-scripts/run_tests.sh /path/to/hermes-resumable-delegation -j 2
-scripts/run_tests.sh tests/plugins/test_subagent_extension.py tests/agent/test_delegated_review.py
+```yaml
+plugins:
+  entries:
+    resumable-delegation:
+      settings:
+        review_skills: false
 ```
 
-Tests load this plugin through real native discovery in temporary profiles. They
-exercise construction, disk persistence, cleanup, parent reconstruction and resume
-through registry, inline and plugin API paths; changed tools, workspace/fork history,
-admission failure, live controls, and unload are covered. External provider execution
-is replaced. Routing tests use real host credential resolution to check mixed-route
-batches, endpoint/credential separation, refreshed credentials on resume, saved model
-changes, per-task refusal, other routing backends, stale-selector rejection, and
-backend parameters passed through the retained-session API.
-Core tests separately protect unchanged fresh defaults for generic/disabled/unloaded
-extensions and retained API calls, profile isolation, explicit tool consent,
-and extension removal, plus durable storage, contention and review safety.
+## Limits and removal
+
+Children belong to their parent conversation and profile. Direct user chat with a
+child, peer messaging and retained cross-profile routes are not implemented.
+Process loss stops active execution; resuming saved history does not replay a
+crashed task. Earlier one-off delegates are not automatically enrolled.
+
+Before disabling or removing the plugin, change `delegation.backend` back to
+`default` (or another installed backend) if it is set to `resumable`. Saved history
+remains, but the plugin's model-facing continuation controls disappear.
+
+See the [reference](docs/reference.md) for observation limits, routing details,
+settings, earlier-draft migration, host APIs and verification instructions.
 
 ## License
 
