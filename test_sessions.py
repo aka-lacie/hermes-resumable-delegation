@@ -52,9 +52,8 @@ def test_completed_child_survives_parent_reconstruction(harness, surface):
     parent.close()
 
 
-def test_resume_rebuilds_current_tool_schemas(harness, monkeypatch):
+def test_resume_rebuilds_current_tool_schemas(harness, monkeypatch, delegate_task):
     import model_tools
-    from tools.delegate_tool import delegate_task
     make_parent, _, observed, _ = harness
     parent = make_parent()
     schema = {"type": "function", "function": {"name": "probe", "description": "old", "parameters": {"type": "object"}}}
@@ -75,7 +74,7 @@ def test_resume_rebuilds_current_tool_schemas(harness, monkeypatch):
 
 
 @pytest.mark.parametrize("failure_stage", ["construction", "startup"])
-def test_failed_admission_releases_retained_children(harness, monkeypatch, failure_stage):
+def test_failed_admission_releases_retained_children(harness, monkeypatch, failure_stage, delegate_task):
     from tools import delegate_tool as tool
     make_parent, _, observed, _ = harness
     parent = make_parent()
@@ -94,18 +93,18 @@ def test_failed_admission_releases_retained_children(harness, monkeypatch, failu
         tasks = [{"goal": "Start a retained assignment"}]
     if failure_stage == "construction":
         with pytest.raises(RuntimeError, match="second construction failed"):
-            tool.delegate_task(tasks=tasks, parent_agent=parent)
+            delegate_task(tasks=tasks, parent_agent=parent)
     else:
-        result = json.loads(tool.delegate_task(tasks=tasks, parent_agent=parent))
+        result = json.loads(delegate_task(tasks=tasks, parent_agent=parent))
         assert result.get("error") or result["results"][0]["status"] == "error", result
-    roster = json.loads(tool.delegate_task(action="list", parent_agent=parent))
+    roster = json.loads(delegate_task(action="list", parent_agent=parent))
     assert roster["subagents"]
     assert all(row["status"] == "idle" for row in roster["subagents"])
     assert not observed
     parent.close()
 
 
-def test_resume_keeps_workspace_and_fork_origin(harness, monkeypatch, tmp_path):
+def test_resume_keeps_workspace_and_fork_origin(harness, monkeypatch, tmp_path, delegate_task):
     from tools import delegate_tool as tool
     from agent.subagent_context import bind_fork_source
     make_parent, _, observed, _ = harness
@@ -114,26 +113,26 @@ def test_resume_keeps_workspace_and_fork_origin(harness, monkeypatch, tmp_path):
     project.mkdir()
     monkeypatch.setattr(tool, "_resolve_workspace_hint", lambda parent: str(project))
     with bind_fork_source(parent, [{"role": "user", "content": "Original project requirements"}]):
-        first = json.loads(tool.delegate_task(tasks=[{"goal": "Review the original project"}], parent_agent=parent))
+        first = json.loads(delegate_task(tasks=[{"goal": "Review the original project"}], parent_agent=parent))
     sid = first["results"][0]["session_id"]
     monkeypatch.setattr(tool, "_resolve_workspace_hint", lambda parent: str(tmp_path / "another-project"))
     parent._session_messages = [{"role": "user", "content": "Unrelated new parent context"}]
-    second = json.loads(tool.delegate_task(action="resume", session_id=sid,
+    second = json.loads(delegate_task(action="resume", session_id=sid,
                                           message="Follow up on the original review", parent_agent=parent))
     assert second["results"][0]["status"] == "completed", second
     assert observed[1]["workspace"] == str(project)
-    assert "The inherited conversation contains" in observed[1]["prompt"]
-    assert "No parent conversation transcript is included" not in observed[1]["prompt"]
+    assert observed[0]["forked_context"] and observed[1]["forked_context"]
+    from tools.delegate_session_store import DelegateSessionStore
+    assert DelegateSessionStore(harness[1]).get(parent.session_id, sid)["forked_context"]
     assert not any("Unrelated new parent context" in str(m) for m in observed[1]["history"])
     parent.close()
 
 
-def test_live_controls_use_stable_session_id(harness, monkeypatch):
+def test_live_controls_use_stable_session_id(harness, monkeypatch, delegate_task):
     import contextvars
     import threading
     from concurrent.futures import ThreadPoolExecutor
     from run_agent import AIAgent
-    from tools.delegate_tool import delegate_task
     make_parent, _, _, _ = harness
     parent = make_parent()
     started, finish = threading.Event(), threading.Event()
@@ -178,11 +177,11 @@ def test_live_controls_use_stable_session_id(harness, monkeypatch):
     parent.close()
 
 
-def test_unload_preserves_sessions_and_native_spawns_stop_enrolling(harness):
+def test_unload_preserves_sessions_and_native_spawns_stop_enrolling(harness, delegate_task):
     """Disabling the policy must not delete history or make ordinary delegates retained."""
     from hermes_cli.plugins import get_plugin_manager
     from agent.subagent_lifecycle import SubagentLifecycleService
-    from tools.delegate_tool import delegate_task, _build_dynamic_schema_overrides
+    from tools.delegate_tool import _build_dynamic_schema_overrides
     make_parent, _, observed, _ = harness
     parent = make_parent()
     first = json.loads(delegate_task(tasks=[{"goal": "Keep these findings"}], parent_agent=parent))

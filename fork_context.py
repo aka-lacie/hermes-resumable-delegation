@@ -3,7 +3,6 @@ from copy import deepcopy
 
 
 def conversation_snapshot(messages):
-    from agent.context_compressor import is_compaction_summary_message
 
     result = []
     for message in messages:
@@ -12,7 +11,7 @@ def conversation_snapshot(messages):
         role = message.get("role")
         if role not in {"user", "assistant"}:
             continue
-        summary = is_compaction_summary_message(message)
+        summary = message.get("_compressed_summary") is True
         final = (
             role == "assistant" and not message.get("tool_calls")
             and message.get("finish_reason") in {None, "stop", "end_turn"}
@@ -21,9 +20,9 @@ def conversation_snapshot(messages):
             continue
         # Rebuild instead of copying session row ids, persistence flags, opaque
         # reasoning signatures, usage anchors, or the parent's tool-call metadata.
-        content = message.get("api_content")
-        if content is None:
-            content = message.get("content")
+        # Wire-only sidecars can contain recalled memory and request-hook injections.
+        # A history fork carries durable conversation content, not those transient additions.
+        content = message.get("content")
         if not content:
             continue
         row = {"role": role, "content": deepcopy(content)}

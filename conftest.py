@@ -44,7 +44,8 @@ def harness(tmp_path, monkeypatch):
         )
         observed.append({"session_id": child.session_id, "history": deepcopy(ctx.messages),
                          "model": child.model, "provider": child.provider, "tools": deepcopy(child.tools),
-                         "prompt": child.ephemeral_system_prompt, "workspace": child._delegate_workspace})
+                         "prompt": child.ephemeral_system_prompt, "workspace": child._delegate_workspace,
+                         "forked_context": child._delegate_forked_context})
         children.append(child)
         ctx.messages.append({"role": "assistant", "content": "Findings retained for follow-up."})
         child._flush_messages_to_session_db(ctx.messages, conversation_history)
@@ -75,7 +76,7 @@ def harness(tmp_path, monkeypatch):
         db.close()
 
 
-def install_routing_plugin(home):
+def _install_routing_plugin(home):
     """Install this package under a real temporary profile with its routing settings."""
     import shutil
     import hermes_yaml as yaml
@@ -89,3 +90,17 @@ def install_routing_plugin(home):
     config_path.write_text(yaml.safe_dump(cfg))
     shutil.copytree(Path(__file__).parent, home / "plugins" / "resumable-delegation",
                     ignore=shutil.ignore_patterns("test_*", "__pycache__", ".git", ".pytest_cache"))
+
+
+@pytest.fixture
+def install_routing_plugin():
+    return _install_routing_plugin
+
+
+@pytest.fixture
+def delegate_task():
+    """Exercise the model-facing entry point, not the fresh internal Python runner."""
+    from tools.registry import registry
+    def dispatch(*, parent_agent, **args):
+        return registry.get_entry("delegate_task").handler(args, parent_agent=parent_agent)
+    return dispatch

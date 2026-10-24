@@ -23,7 +23,8 @@ work, and skills review can retain reusable lessons beyond that conversation.
 ## Setup
 
 **Development preview:** this requires the proposed Hermes host changes on
-`feat/resumable-delegation` at `63ef3d0fc0` (upstream base `5894e750c3db`). They are
+`feat/resumable-delegation` at tested host commit
+`8a6ce08917e71c57643d4f4524709034597bb4e7` (upstream base `5894e750c3db`). They are
 not yet merged upstream. Use a patched host with native SessionDB and in-process
 plugins; managed workers using RuntimeSessionStore are not supported.
 
@@ -100,12 +101,16 @@ Other controls use the same tool:
 | `close` | `session_id` | Permanently retire an idle child from reuse, preserving its history. |
 
 Use `steer` or `stop` while a child is busy; resume is for idle children.
-There is no automatic idle expiry or retained-child cap.
+There is no automatic idle expiry or storage cap, so retained history can grow
+without bound. Normal session deletion and opt-in session auto-pruning still apply;
+a deleted transcript cannot be resumed. If a timeout leaves a worker alive, its
+conversation is permanently closed to reuse. You can observe it or close it again,
+but further work needs a new child. Spawn and resume both use activation budgets.
 
 ## 2. Choose inherited or fresh context
 
 New children inherit user turns, final answers and compaction summaries by default.
-**Tool history and private reasoning are excluded.** Put any needed tool findings
+**Tool history, private reasoning, and ephemeral memory/request-hook injections are excluded.** Put any needed tool findings
 in the task's `context`.
 
 For an independent assessment, start fresh:
@@ -117,10 +122,12 @@ For an independent assessment, start fresh:
 This still creates a resumable child. Forking supplies conversation background;
 it does not copy the parent's persona or system instructions. Children use Hermes'
 existing delegated-worker instructions, and this plugin does not enable loading
-the parent's `SOUL.md` or add separate main/child instruction files.
+the parent's `SOUL.md` or add separate main/child instruction files. Internal `/review`
+and other Python callers keep their fresh, nonretained defaults.
 
 The plugin owns history filtering; core captures, validates and persists the
-snapshot. Other plugins can choose different history formats, but this hook does
+snapshot. Core adds an assistant boundary after trailing inherited user content so
+it stays separate from the new assignment. Other plugins can choose different history formats, but this hook does
 not replace the child's system prompt or tool definitions. Preserving the parent's
 complete request prefix for prompt-cache reuse is outside the current feature.
 

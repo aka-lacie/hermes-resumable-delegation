@@ -6,7 +6,7 @@ from unittest.mock import patch
 import hermes_yaml as yaml
 
 
-def test_profile_routes_through_registry_and_real_children(tmp_path, monkeypatch):
+def test_profile_routes_through_registry_and_real_children(tmp_path, monkeypatch, install_routing_plugin):
     from agent.secret_scope import set_multiplex_active
     from gateway.run import _profile_runtime_scope
     from run_agent import AIAgent
@@ -15,7 +15,6 @@ def test_profile_routes_through_registry_and_real_children(tmp_path, monkeypatch
     from tools.registry import registry
 
     from pathlib import Path
-    from conftest import install_routing_plugin
     from hermes_state import SessionDB
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     homes = [tmp_path / "a", tmp_path / "b"]

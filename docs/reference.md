@@ -47,6 +47,9 @@ longer text keeps its head and tail with an omitted-character count. Assistant p
 can use the remainder of the 12,000-character window, which includes preview metadata.
 `truncated: true` indicates omitted messages or shortened previews. These previews
 are text, not necessarily parseable JSON; stored transcripts remain complete.
+Content and preview metadata use the same redaction policy as normal child results,
+including vault-value scrubbing, before truncation and budgeting. Observation does
+not rewrite the stored transcript. Query scans do not hold the database writer lock.
 
 ## Routing details
 
@@ -85,9 +88,15 @@ route identity, exclusive activation, transcript continuation, current capabilit
 interruption, review execution and teardown. Registration itself makes no provider
 requests, sends no messages and writes no database or configuration data.
 
+Internal Python delegation callers such as `/review` do not inherit this policy.
+Model-facing calls and explicit `launch_session` calls opt into the extension.
+
 The conversation-only fork projection lives in [`fork_context.py`](../fork_context.py).
 The host supplies an unformatted, detached boundary; other extensions can retain
-completed tool exchanges or use another projection. Core validates the result and
+completed tool exchanges or use another projection. The companion uses durable
+`content`, excluding ephemeral `api_content` memory/request-hook injections, and the
+host-provided `_compressed_summary` marker. Core validates the result, appends an
+assistant boundary after trailing user history to separate the new assignment, and
 persists the child's own history. An explicit fork requires an enabled formatter;
 ordinary core launches remain fresh. The formatter controls history only: it cannot
 replace core's child instructions, select identity policy, or override tool
@@ -143,5 +152,7 @@ Tests load the plugin through real discovery in temporary profiles and replace
 external model execution. Coverage includes persistence and resume after parent
 reconstruction; refreshed capabilities; fork/fresh selection and custom formats;
 admission and live controls; mixed routes, credential separation and saved-route
-reconstruction; invalid parameters and unload. Host tests cover fresh defaults,
+reconstruction; internal `/review` isolation, durable fork content and assignment
+separation, activation budgets, timeout retirement, invalid parameters and unload.
+Host tests cover fresh defaults,
 ownership, profile isolation, transcript validation, contention and review safety.

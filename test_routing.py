@@ -140,12 +140,12 @@ def test_backend_parameters_reach_retained_service_launch(routing):
     parent.close()
 
 
-def test_retention_composes_with_another_backend_without_advertising_our_selectors(harness):
+def test_retention_composes_with_another_backend_without_advertising_our_selectors(harness, delegate_task):
     """Installing retention must not replace a user's routing backend or its schema."""
     from agent.delegation_provider import DelegationProvider
     from agent.subagent_extension import get_subagent_extension
     from hermes_cli.config import load_config
-    from tools.delegate_tool import _build_dynamic_schema_overrides, delegate_task
+    from tools.delegate_tool import _build_dynamic_schema_overrides
 
     class Tiers(DelegationProvider):
         @property
@@ -177,9 +177,8 @@ def test_retention_composes_with_another_backend_without_advertising_our_selecto
 
 
 @pytest.mark.parametrize("old_field", ["model", "provider"])
-def test_stale_spawn_selectors_are_not_silently_ignored(harness, old_field):
+def test_stale_spawn_selectors_are_not_silently_ignored(harness, old_field, delegate_task):
     """An old cached tool call must be refused, never run on an unintended route."""
-    from tools.delegate_tool import delegate_task
 
     make_parent, _, _, children = harness
     parent = make_parent()
