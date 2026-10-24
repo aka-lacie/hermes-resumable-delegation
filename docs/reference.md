@@ -1,4 +1,4 @@
-# Reference
+# Persistent Subagents reference
 
 For installation and examples, start with the [README](../README.md).
 

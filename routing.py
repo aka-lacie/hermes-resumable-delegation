@@ -13,7 +13,7 @@ class RetainedRouting(DelegationProvider):
 
     @property
     def display_name(self):
-        return "Resumable delegation"
+        return "Persistent Subagents"
 
     @property
     def summary(self):

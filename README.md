@@ -1,6 +1,7 @@
-# Resumable delegation
+# Persistent Subagents for Hermes
 
-Give a personal agent delegated conversations it can return to as work develops.
+Delegate ongoing work to child agents that retain context across assignments.
+Built for orchestration-first personal agents.
 A child can review a change, finish, and later review your revisions with its earlier
 findings intact. Between assignments, its conversation stays on disk with no live
 agent running.
@@ -25,6 +26,9 @@ work, and skills review can retain reusable lessons beyond that conversation.
 `feat/resumable-delegation` at `63ef3d0fc0` (upstream base `5894e750c3db`). They are
 not yet merged upstream. Use a patched host with native SessionDB and in-process
 plugins; managed workers using RuntimeSessionStore are not supported.
+
+The plugin ID remains `resumable-delegation`; its optional routing backend is
+`resumable`. Use those identifiers in commands and configuration below.
 
 No extra Python packages, services or companion plugins are required. Configure
 providers and credentials through Hermes as usual.
